@@ -640,10 +640,15 @@ simple8brle_decompression_iterator_init_reverse(Simple8bRleDecompressionIterator
  * is_done and is_null via pointers; it uses two registers instead of any memory reads.
  * Since it is also easier to read, we perfer it here.
  */
+
+ // here we get the data and try to uncompresss it instead ... was wrong before ...
 static Simple8bRleDecompressResult
 simple8brle_decompression_iterator_try_next_forward(Simple8bRleDecompressionIterator *iter)
 {
 	uint64 uncompressed;
+	// Check if we decompressed all data in the chunk or not here
+	// On which level do we have concurrancy? Maybe between chucks? 
+	// I wonder how fast this is. 
 	if (iter->num_elements_returned >= iter->num_elements)
 		return (Simple8bRleDecompressResult){
 			.is_done = true,
@@ -743,6 +748,8 @@ simple8brle_block_create_rle(uint32 rle_count, uint64 rle_val)
 	};
 }
 
+// HERE WE DO THE DECOMPRESSION IN REALITY
+// We check if it is RLE of simple-8b here
 static inline Simple8bRleBlock
 simple8brle_block_create(uint8 selector, uint64 data)
 {
@@ -785,11 +792,17 @@ simple8brle_block_append_element(Simple8bRleBlock *block, uint64 val)
 	Assert(block->num_elements_compressed < SIMPLE8B_NUM_ELEMENTS[block->selector]);
 	// Here is some bitwise magic where we add it to the end ... 
 	// Need to understand these operations and then it should be good
+
+	// old data with logical or , val is left shifted with the selector  * the number of elements
+	// This is cool, we break the int32 to chunks and add to parts of it, 
+	// 
 	block->data = block->data |
 				  val << (SIMPLE8B_BIT_LENGTH[block->selector] * block->num_elements_compressed);
 	block->num_elements_compressed += 1;
 }
 
+// decompression function I wonder what this one actually does for simple 8 though
+// We are grabbing one value at the time here !!!!
 static inline uint64
 simple8brle_block_get_element(Simple8bRleBlock block, uint32 position_in_value)
 {
@@ -810,6 +823,8 @@ simple8brle_block_get_element(Simple8bRleBlock block, uint32 position_in_value)
 		uint64 compressed_value = block.data;
 		uint32 bits_per_val = SIMPLE8B_BIT_LENGTH[block.selector];
 		/* decode bit-packed integers*/
+		// Here we are decoding the stuff that we care about
+		// We just get one value at the time 
 		Assert(position_in_value < SIMPLE8B_NUM_ELEMENTS[block.selector]);
 		compressed_value >>= bits_per_val * position_in_value;
 		compressed_value &= simple8brle_selector_get_bitmask(block.selector);
