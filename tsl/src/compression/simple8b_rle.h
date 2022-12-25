@@ -649,6 +649,8 @@ simple8brle_decompression_iterator_try_next_forward(Simple8bRleDecompressionIter
 	// Check if we decompressed all data in the chunk or not here
 	// On which level do we have concurrancy? Maybe between chucks? 
 	// I wonder how fast this is. 
+	// Question is how many bits we waste for the images atm
+	
 	if (iter->num_elements_returned >= iter->num_elements)
 		return (Simple8bRleDecompressResult){
 			.is_done = true,
